@@ -1,0 +1,34 @@
+
+
+CREATE COMPUTE MODULE PaymentInit_buildAuthRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+		
+				
+	    DECLARE paymobBaseUrl CHARACTER Environment.Variables.paymobBaseUrl;
+	    DECLARE paymobApiKey CHARACTER Environment.Variables.paymobApiKey;
+	
+	    SET OutputLocalEnvironment.Destination.HTTP.RequestURL = paymobBaseUrl || '/auth/tokens';
+	
+	    -- Paymob expects: { "api_key": "myKey" }
+	    SET OutputRoot.JSON.Data.api_key = paymobApiKey;
+    
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

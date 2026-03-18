@@ -1,0 +1,92 @@
+
+
+CREATE COMPUTE MODULE PaymentInit_validateInput
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+
+	    DECLARE inRef REFERENCE TO InputRoot.JSON.Data;
+	
+	    IF inRef.userId IS NULL OR inRef.userId <= 0 THEN
+	      CALL setValidationError(
+	        'INVALID_USER_ID',
+	        'userId is required and must be a positive integer'
+	      );
+	      PROPAGATE TO TERMINAL 'out1'; -- routes to ErrorHandler
+	      RETURN FALSE;
+	    END IF;
+	
+	    IF inRef.addressId IS NULL OR inRef.addressId <= 0 THEN
+	      CALL setValidationError(
+	        'INVALID_ADDRESS_ID',
+	        'addressId is required and must be a positive integer'
+	      );
+	      PROPAGATE TO TERMINAL 'out1';
+	      RETURN FALSE;
+	    END IF;
+	
+	    IF inRef.amountCents IS NULL OR inRef.amountCents <= 0 THEN
+	      CALL setValidationError(
+	        'INVALID_AMOUNT',
+	        'amountCents is required and must be greater than 0'
+	      );
+	      PROPAGATE TO TERMINAL 'out1';
+	      RETURN FALSE;
+	    END IF;
+	
+	    IF inRef.currency IS NULL OR LENGTH(TRIM(inRef.currency)) <> 3 THEN
+	      CALL setValidationError(
+	        'INVALID_CURRENCY',
+	        'currency is required and must be a 3-character code like EGP'
+	      );
+	      PROPAGATE TO TERMINAL 'out1';
+	      RETURN FALSE;
+	    END IF;
+	
+	    IF NOT EXISTS(inRef.items[]) THEN
+	      CALL setValidationError(
+	        'INVALID_ITEMS',
+	        'items array is required and must contain at least one item'
+	      );
+	      PROPAGATE TO TERMINAL 'out1';
+	      RETURN FALSE;
+	    END IF;
+	
+	    SET Environment.Variables.userId      = inRef.userId;
+	    SET Environment.Variables.addressId   = inRef.addressId;
+	    SET Environment.Variables.amountCents = inRef.amountCents;
+	    SET Environment.Variables.currency    = inRef.currency;
+	
+	    SET OutputRoot.JSON.Data = inRef;
+    
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+	
+	
+	  CREATE PROCEDURE setValidationError(
+	    IN errorCode    CHAR,
+	    IN errorMessage CHAR
+	  )
+	  BEGIN
+	    SET Environment.Error.code    = errorCode;
+	    SET Environment.Error.message = errorMessage;
+	    SET Environment.Error.flow    = 'PaymentInit';
+	    SET Environment.Error.stage   = 'ValidateInput';
+	  END;
+  
+END MODULE;

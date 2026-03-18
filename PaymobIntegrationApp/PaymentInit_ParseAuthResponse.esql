@@ -1,0 +1,41 @@
+
+
+CREATE COMPUTE MODULE PaymentInit_ParseAuthResponse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+		
+		DECLARE inRef REFERENCE TO InputRoot.JSON.Data;
+
+	    -- Paymob returns: { "token": "abc123..." }
+	    -- i read it from InputRoot which is now the HTTP response
+	    
+	    IF inRef.token IS NULL OR LENGTH(TRIM(inRef.token)) = 0 THEN
+	      SET Environment.Error.code    = 'AUTH_TOKEN_FAILED';
+	      SET Environment.Error.message = 'Failed to retrieve authentication token from Paymob';
+	      SET Environment.Error.flow    = 'PaymentInit';
+	      SET Environment.Error.stage   = 'GetAuthToken';
+	      PROPAGATE TO TERMINAL 'out1';
+	      RETURN FALSE;
+	    END IF;
+	    
+	    SET Environment.Variables.authToken = inRef.token;
+	    SET OutputRoot.JSON.Data = inRef;
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;

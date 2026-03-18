@@ -1,0 +1,78 @@
+
+
+CREATE COMPUTE MODULE PaymentInit_BuildPaymentKeyRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		-- CALL CopyMessageHeaders();
+		-- CALL CopyEntireMessage();
+		
+		DECLARE paymobBaseUrl CHARACTER Environment.Variables.paymobBaseUrl;
+	    DECLARE authToken CHARACTER Environment.Variables.authToken;
+	    DECLARE paymobOrderId CHARACTER Environment.Variables.paymobOrderId;
+	    DECLARE amountCents INTEGER Environment.Variables.amountCents;
+	    DECLARE currency CHARACTER Environment.Variables.currency;
+	    DECLARE integrationId CHARACTER Environment.Variables.integrationId;
+	
+	    -- user data
+	    DECLARE firstName CHARACTER Environment.Variables.userFirstName;
+	    DECLARE lastName CHARACTER Environment.Variables.userLastName;
+	    DECLARE email CHARACTER Environment.Variables.userEmail;
+	    DECLARE phone CHARACTER Environment.Variables.userPhone;
+	
+	    -- sddress data
+	    DECLARE apartment  CHARACTER   Environment.Variables.apartment;
+	    DECLARE floor      CHARACTER   Environment.Variables.floor;
+	    DECLARE street     CHARACTER   Environment.Variables.street;
+	    DECLARE building   CHARACTER   Environment.Variables.building;
+	    DECLARE city       CHARACTER   Environment.Variables.city;
+	    DECLARE country    CHARACTER   Environment.Variables.country;
+	    DECLARE state      CHARACTER   Environment.Variables.state;
+	    --DECLARE postalCode CHARACTER   Environment.Variables.postalCode;
+	    
+	    DECLARE postalCode CHARACTER;
+		IF Environment.Variables.postalCode IS NULL THEN
+		    SET postalCode = 'NA';
+		ELSE
+		    SET postalCode = Environment.Variables.postalCode;
+		END IF;
+	
+	    SET OutputLocalEnvironment.Destination.HTTP.RequestURL = paymobBaseUrl || '/acceptance/payment_keys';
+	
+	    -- main payment key body
+	    SET OutputRoot.JSON.Data.auth_token = authToken;
+	    SET OutputRoot.JSON.Data.amount_cents = amountCents;
+	    SET OutputRoot.JSON.Data.expiration = 3600;  -- key valid 1 hour
+	    SET OutputRoot.JSON.Data.order_id = CAST(paymobOrderId AS INTEGER);
+	    SET OutputRoot.JSON.Data.currency = currency;
+	    SET OutputRoot.JSON.Data.integration_id = CAST(integrationId AS INTEGER);
+	
+	    -- Billing data — Paymob requires this exact structure
+		SET OutputRoot.JSON.Data.billing_data.apartment    = apartment;
+		SET OutputRoot.JSON.Data.billing_data.floor        = floor;
+		SET OutputRoot.JSON.Data.billing_data.street       = street;
+		SET OutputRoot.JSON.Data.billing_data.building     = building;
+		SET OutputRoot.JSON.Data.billing_data.city         = city;
+		SET OutputRoot.JSON.Data.billing_data.country      = country;
+		SET OutputRoot.JSON.Data.billing_data.state        = state;
+		SET OutputRoot.JSON.Data.billing_data.postal_code  = postalCode;
+		SET OutputRoot.JSON.Data.billing_data.first_name   = firstName;
+		SET OutputRoot.JSON.Data.billing_data.last_name    = lastName;
+		SET OutputRoot.JSON.Data.billing_data.email        = email;
+		SET OutputRoot.JSON.Data.billing_data.phone_number = phone;
+		RETURN TRUE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+END MODULE;
